@@ -134,17 +134,38 @@ ruby_version_is "2.0.0" do
         using StringRefinement
         'hello'.foo
       end.call.should == 'foo'
+      # Not sure we _want_ this behavior
+      'foo'.foo.should == 'foo'
     end
 
-    ruby_bug "in a_matsuda's slides but does not appear to work", "2.0.1" do
-      it "applies used refinements to nested closures inside module/class_eval" do
-	mod = Module.new do
-	  using StringRefinement
-	end
-
-	mod.module_eval { lambda { 'hello'.say } }.call.should == 'foo'
-	mod.class_eval { lambda { 'hello'.say } }.call.should == 'foo'
+    it "refinements in a lambda apply to the module in which the lambda was defined" do
+      mod = Module.new
+      l = mod.module_eval do
+        lambda do
+          using StringRefinement
+        end
       end
+      mod2 = Module.new
+      mod2.module_eval do
+        l.call
+      end
+      lambda do
+        mod2.module_eval do
+          'foo'.foo
+        end
+      end.should raise_error(NoMethodError)
+      mod.module_eval do
+        'foo'.foo
+      end.should == 'foo'
+    end
+
+    it "applies used refinements to nested closures inside module/class_eval" do
+      mod = Module.new do
+        using StringRefinement
+      end
+
+      mod.module_eval { lambda { 'hello'.foo } }.call.should == 'foo'
+      mod.class_eval { lambda { 'hello'.foo } }.call.should == 'foo'
     end
   end
 end
